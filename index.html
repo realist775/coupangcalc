@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FORETIMBER Narx Kalkulyatori</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: two-pane workbench — big inputs left, sticky big-number results right; stacks on phones with a bottom price bar. */
+:root{
+  --bg:#EEF2EF; --surface:#FFFFFF; --surface-2:#F6F8F6; --ink:#15211B; --muted:#56655D; --line:#D6DED8;
+  --accent:#1E6A49; --accent-ink:#FFFFFF; --accent-soft:#E1EEE6;
+  --hero:#173F2E; --hero-ink:#F2F7F3; --hero-muted:#A9C4B5;
+  --pos:#1B7A4C; --neg:#B23F2C; --neg-soft:#F7E6E2; --warn:#8A5A00; --warn-soft:#FBF0D6;
+  --font-num:"Archivo","IBM Plex Sans KR",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1411; --surface:#161F1A; --surface-2:#1B2620; --ink:#E7EEE9; --muted:#9BABA2; --line:#2B3831;
+  --accent:#5BC08D; --accent-ink:#0B1A12; --accent-soft:#1B3227;
+  --hero:#1E4A36; --hero-ink:#F2F7F3; --hero-muted:#A8CDB9;
+  --pos:#62D198; --neg:#F08A74; --neg-soft:#3A221D; --warn:#F0C25C; --warn-soft:#352A12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1411; --surface:#161F1A; --surface-2:#1B2620; --ink:#E7EEE9; --muted:#9BABA2; --line:#2B3831;
+  --accent:#5BC08D; --accent-ink:#0B1A12; --accent-soft:#1B3227;
+  --hero:#1E4A36; --hero-ink:#F2F7F3; --hero-muted:#A8CDB9;
+  --pos:#62D198; --neg:#F08A74; --neg-soft:#3A221D; --warn:#F0C25C; --warn-soft:#352A12; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:17px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 120px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* header */
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{margin:2px 0 4px;font-size:clamp(26px,4vw,36px);line-height:1.15;text-wrap:balance;font-weight:700}
+.lede{margin:0;color:var(--muted);max-width:60ch}
+.lang{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.lang button{border:0;background:none;padding:8px 16px;border-radius:999px;font-weight:600;font-size:15px;color:var(--muted)}
+.lang button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:24px;align-items:start}
+@media (max-width:940px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* input cards */
+.inputs{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:16px}
+.step{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px}
+.step b{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-family:var(--font-num);font-size:16px}
+.field{display:flex;flex-direction:column;gap:8px}
+.field label,.flabel{font-weight:600;font-size:16px}
+.hint{font-size:14px;color:var(--muted)}
+.box{display:flex;align-items:center;background:var(--surface-2);border:2px solid var(--line);border-radius:12px;transition:border-color .15s}
+.box:focus-within{border-color:var(--accent);background:var(--surface)}
+.box input{flex:1;min-width:0;border:0;background:none;outline:none;color:var(--ink);font-family:var(--font-num);font-variant-numeric:tabular-nums;
+  font-size:30px;font-weight:700;padding:12px 14px;text-align:right}
+.box input.text{font-family:var(--font-body);font-size:20px;font-weight:500;text-align:left}
+.box .unit{padding-right:16px;font-size:20px;font-weight:600;color:var(--muted)}
+.box input::placeholder{color:var(--muted);opacity:.5}
+.subval{font-size:15px;color:var(--muted);text-align:right}
+.subval strong{color:var(--ink)}
+
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:0;background:none;border-radius:9px;padding:12px 6px;font-weight:600;font-size:15px;color:var(--muted);line-height:1.25}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-family:var(--font-num);font-weight:600;font-size:16px}
+.chips button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.check{display:flex;gap:12px;align-items:flex-start;font-size:15px;cursor:pointer}
+.check input{width:22px;height:22px;accent-color:var(--accent);margin:1px 0 0;flex:none}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:520px){.two{grid-template-columns:1fr}}
+
+/* results */
+.results{display:flex;flex-direction:column;gap:16px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+@media (max-width:940px){.results{position:static}}
+.hero{background:var(--hero);color:var(--hero-ink);border-radius:18px;padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:520px){.hero{grid-template-columns:1fr}}
+.hero .lbl{font-size:15px;color:var(--hero-muted);font-weight:600}
+.hero .big{font-size:clamp(40px,6vw,56px);font-weight:800;line-height:1.05;letter-spacing:-.01em;margin:4px 0 6px;word-break:break-all}
+.hero .big small{font-size:.45em;font-weight:700;margin-left:4px}
+.hero .meta{font-size:15px;color:var(--hero-muted)}
+.hero .meta strong{color:var(--hero-ink)}
+.copy{margin-top:10px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:var(--hero-ink);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:600}
+.copy:hover{background:rgba(255,255,255,.16)}
+.hero .divider{border-left:1px solid rgba(255,255,255,.18);padding-left:20px}
+@media (max-width:520px){.hero .divider{border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,.18);padding-top:18px}}
+
+.profit{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:center}
+.profit .big{font-size:clamp(36px,5vw,48px);font-weight:800;line-height:1.05;color:var(--pos)}
+.profit .big.neg{color:var(--neg)}
+.profit .big small{font-size:.45em;margin-left:4px}
+.ratebox{background:var(--accent-soft);border-radius:12px;padding:14px 16px;text-align:right}
+.ratebox .r{font-size:34px;font-weight:800;color:var(--accent)}
+.ratebox .s{font-size:14px;color:var(--muted)}
+.lbl2{font-size:15px;color:var(--muted);font-weight:600}
+
+.note{border-radius:10px;padding:12px 14px;font-size:15px}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.err{background:var(--neg-soft);color:var(--neg);font-weight:600;font-size:17px}
+
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}
+.row:last-child{border-bottom:0}
+.row .name{font-size:16px}
+.row .val{font-size:20px;font-weight:700;text-align:right}
+.row .val.neg{color:var(--neg)}
+.row .bar{grid-column:1/-1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.row .bar i{display:block;height:100%;border-radius:3px;background:var(--neg);opacity:.75}
+.row.total{border-top:2px solid var(--ink);border-bottom:0}
+.row.total .name{font-weight:700}
+.row.total .val{font-size:24px}
+.row.sub .name{font-weight:600}
+.row.sale .bar i{background:var(--accent);opacity:1}
+.row.final .val{color:var(--pos)}
+.row.final .val.neg{color:var(--neg)}
+details summary{cursor:pointer;font-weight:700;font-size:17px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";font-size:24px;color:var(--muted)}
+details[open] summary::after{content:"−"}
+.formula{font-size:14px;color:var(--muted);background:var(--surface-2);padding:12px;border-radius:10px;overflow-x:auto}
+
+.actions{display:flex;gap:12px;flex-wrap:wrap}
+.btn{border:0;border-radius:12px;padding:14px 22px;font-weight:700;font-size:17px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:var(--surface);border:1px solid var(--line)}
+
+/* table */
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:17px;min-width:480px}
+th{text-align:right;font-size:14px;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:2px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr.on{background:var(--accent-soft)}
+tbody tr.on td:first-child{color:var(--accent);font-weight:800}
+
+.saved{display:flex;flex-direction:column;gap:10px}
+.sitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:12px}
+.sitem .n{font-weight:700;overflow-wrap:anywhere}
+.sitem .d{font-size:15px;color:var(--muted)}
+.sitem .d strong{color:var(--ink);font-family:var(--font-num)}
+.sitem .b{display:flex;gap:8px}
+.sitem .b button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:600}
+.sitem .b button.del{color:var(--neg)}
+.empty{color:var(--muted);font-size:15px}
+.badge{display:inline-block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;background:var(--warn-soft);color:var(--warn);border-radius:6px;padding:2px 8px;margin-left:8px;vertical-align:middle;font-weight:700}
+
+/* mobile bottom bar */
+.mbar{display:none}
+@media (max-width:940px){
+  .mbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--hero);color:var(--hero-ink);
+    padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+    justify-content:space-between;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,.18)}
+  .mbar div{display:flex;flex-direction:column}
+  .mbar span{font-size:12px;color:var(--hero-muted);font-weight:600}
+  .mbar strong{font-size:22px;font-family:var(--font-num);font-variant-numeric:tabular-nums}
+}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:600;font-size:15px;z-index:30}
+@media (prefers-reduced-motion:no-preference){.box,.seg button,.chips button{transition:all .15s}}
+</style>
+<style>[hidden]{display:none!important} img{max-width:100%}</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">FORETIMBER · 쿠팡</div>
+      <h1 data-i="title">Coupang narx kalkulyatori</h1>
+      <p class="lede" data-i="lede"></p>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="lang-uz" type="button" aria-pressed="true">O'zbek</button>
+      <button id="lang-ko" type="button" aria-pressed="false">한국어</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- INPUTS -->
+    <section class="inputs">
+      <div class="card">
+        <div class="field">
+          <label for="name" data-i="name"></label>
+          <div class="box"><input id="name" class="text" type="text" autocomplete="off"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="step"><b>1</b><span data-i="s1"></span></div>
+        <div class="field">
+          <label for="cost" data-i="cost"></label>
+          <span class="hint" data-i="costHint"></span>
+          <div class="box"><input id="cost" inputmode="numeric" autocomplete="off" placeholder="0"><span class="unit">원</span></div>
+          <div class="subval" id="costVat"></div>
+        </div>
+        <div class="field">
+          <label for="setQty" data-i="setQty"></label>
+          <span class="hint" data-i="setHint"></span>
+          <div class="box"><input id="setQty" inputmode="numeric" autocomplete="off" value="1"><span class="unit" data-i="pcs"></span></div>
+          <div class="chips" id="setChips"></div>
+          <div class="subval" id="setCost"></div>
+        </div>
+        <div class="field">
+          <label for="ship" data-i="ship"></label>
+          <div class="box"><input id="ship" inputmode="numeric" autocomplete="off" placeholder="0"><span class="unit">원</span></div>
+          <div class="chips" id="shipChips"></div>
+          <label class="check"><input id="shipDeduct" type="checkbox" checked><span data-i="shipDeduct"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="step"><b>2</b><span data-i="s2"></span></div>
+        <div class="seg" role="group" id="tmode">
+          <button type="button" data-v="margin" id="tm-margin"></button>
+          <button type="button" data-v="markup" id="tm-markup"></button>
+          <button type="button" data-v="amount" id="tm-amount"></button>
+        </div>
+        <div class="field">
+          <span class="hint" id="targetHelp"></span>
+          <div class="box"><input id="target" inputmode="decimal" autocomplete="off" placeholder="0"><span class="unit" id="targetUnit">%</span></div>
+          <div class="chips" id="targetChips"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="step"><b>3</b><span data-i="s3"></span></div>
+        <div class="seg" role="group" id="dmode">
+          <button type="button" data-v="rate" id="dm-rate"></button>
+          <button type="button" data-v="amount" id="dm-amount"></button>
+          <button type="button" data-v="none" id="dm-none"></button>
+        </div>
+        <div class="field" id="discField">
+          <span class="hint" id="discHelp"></span>
+          <div class="box"><input id="disc" inputmode="decimal" autocomplete="off" placeholder="0"><span class="unit" id="discUnit">%</span></div>
+          <div class="chips" id="discChips"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="step"><b>4</b><span data-i="s4"></span></div>
+        <div class="two">
+          <div class="field">
+            <label for="fee" data-i="fee"></label>
+            <div class="box"><input id="fee" inputmode="decimal" autocomplete="off" value="10.8"><span class="unit">%</span></div>
+            <div class="chips" id="feeChips"></div>
+            <span class="hint" id="feeVat"></span>
+          </div>
+          <div class="field">
+            <span class="flabel" data-i="round"></span>
+            <div class="chips" id="roundChips"></div>
+            <span class="hint" data-i="roundHint"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="results" aria-live="polite">
+      <div class="hero">
+        <div>
+          <div class="lbl" data-i="sale"></div>
+          <div class="big num" id="rSale">—</div>
+          <div class="meta" data-i="saleSub"></div>
+          <div class="meta" id="rPer"></div>
+          <button class="copy" type="button" id="copySale" data-i="copy"></button>
+        </div>
+        <div class="divider">
+          <div class="lbl" data-i="list"></div>
+          <div class="big num" id="rList">—</div>
+          <div class="meta" id="rDisc"></div>
+          <button class="copy" type="button" id="copyList" data-i="copy"></button>
+        </div>
+      </div>
+
+      <div class="note err" id="err" hidden></div>
+
+      <div class="card">
+        <div class="profit">
+          <div>
+            <div class="lbl2" data-i="net"></div>
+            <div class="big num" id="rNet">—</div>
+            <div class="hint" id="rPre"></div>
+          </div>
+          <div class="ratebox">
+            <div class="r num" id="rRate">—</div>
+            <div class="s" data-i="rateLbl"></div>
+            <div class="s" id="rMarkup"></div>
+          </div>
+        </div>
+        <div class="note warn" id="roundNote" hidden></div>
+      </div>
+
+      <div class="card">
+        <div class="step" style="font-size:17px" id="bdTitle"></div>
+        <div class="rows" id="rows"></div>
+      </div>
+
+      <div class="card">
+        <details>
+          <summary data-i="vatTitle"></summary>
+          <div class="rows" id="vatRows" style="margin-top:8px"></div>
+          <div class="formula" data-i="formula"></div>
+        </details>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" type="button" id="saveBtn" data-i="save"></button>
+        <button class="btn ghost" type="button" id="resetBtn" data-i="reset"></button>
+      </div>
+    </section>
+  </div>
+
+  <div class="card">
+    <div class="step" style="font-size:19px" data-i="setTblTitle"></div>
+    <span class="hint" id="setTblSub"></span>
+    <div class="tablewrap">
+      <table style="min-width:640px">
+        <thead><tr><th data-i="sc1"></th><th data-i="sc2"></th><th data-i="sc3"></th><th data-i="sc4"></th><th data-i="sc5"></th><th data-i="sc6"></th></tr></thead>
+        <tbody id="setTbl"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="step" style="font-size:19px" data-i="tblTitle"></div>
+    <span class="hint" data-i="tblSub"></span>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th data-i="c1"></th><th data-i="c2"></th><th data-i="c3"></th><th data-i="c4"></th></tr></thead>
+        <tbody id="tbl"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="step" style="font-size:19px" data-i="savedTitle"></div>
+    <div class="saved" id="saved"></div>
+  </div>
+</div>
+
+<div class="mbar">
+  <div><span data-i="saleShort"></span><strong id="mSale">—</strong></div>
+  <div><span data-i="listShort"></span><strong id="mList">—</strong></div>
+  <div style="text-align:right"><span data-i="netShort"></span><strong id="mNet">—</strong></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const T = {
+ uz:{
+  title:"Coupang narx kalkulyatori",
+  lede:"매입가 va istagan sof foydangizni kiriting: 판매가, 정상가, 쿠팡 수수료 va 부가세 o'zi hisoblanadi.",
+  name:"Mahsulot nomi", namePh:"Masalan: 조립식 텃밭 1800x700",
+  s1:"Xarajatlar", cost:"매입가 · Xarid narxi (1 dona)", costHint:"부가세 별도 (QQSsiz) summani kiriting",
+  costVat:"부가세 bilan: <strong>{v}원</strong>",
+  ship:"택배비 · 1 set jo'natish narxi", setQty:"Set · 1 set necha dona", setHint:"1 = bitta dona sotiladi. Masalan 10 yozsangiz, 10 dona bitta set bo'ladi va 매입가 avtomatik 10 barobar olinadi.", pcs:" dona", setCost:"1 set 매입가: {n} × {c} = <strong>{t}원</strong> (부가세 bilan {v}원)", perPiece:"1 donasi: <strong>{v}원</strong>", netPer:"1 donasi: {v}원", setTblTitle:"Set bo'yicha narxlar", setTblSub:"Hozirgi foyda va chegirma bilan hisoblangan. 택배비 hamma qatorda hozirgi qiymat ({v}원) bilan olinadi. Katta setda 택배비 boshqacha bo'lsa, setni tanlab yuqorida 택배비ni o'zgartiring. Qatorni bosing, shu set tanlanadi.", sc1:"Set", sc2:"매입가 (set)", sc3:"판매가", sc4:"1 donasi", sc5:"정상가", sc6:"순이익", shipDeduct:"택배비 uchun 세금계산서 bor (uning 부가세i qaytariladi)",
+  s2:"Istagan sof foyda (부가세 to'langandan keyin)",
+  tmMargin:"판매가 대비<br>%", tmMarkup:"매입가 대비<br>%", tmAmount:"금액<br>₩",
+  hMargin:"Sotuv narxining necha foizi sof foyda bo'lib qolsin",
+  hMarkup:"Xarid narxiga (매입가) nisbatan necha foiz sof foyda qolsin",
+  hAmount:"Bir setdan necha won sof foyda qolsin",
+  s3:"Chegirma → 정상가", dmRate:"할인율<br>%", dmAmount:"할인 금액<br>₩", dmNone:"할인<br>없음",
+  hdRate:"정상가 dan necha foiz chegirma ko'rsatilsin", hdAmount:"정상가 dan necha won chegirma ko'rsatilsin",
+  s4:"Sozlamalar", fee:"쿠팡 수수료율 (부가세 별도)", feeVat:"부가세 bilan: {v}%",
+  round:"판매가 oxiri qanday bo'lsin", roundHint:"Narx doim yuqoriga yaxlitlanadi, foyda kamaymaydi.",
+  r900:"…900원",
+  sale:"판매가 · Sotuv narxi", saleSub:"Mijoz 1 set uchun to'laydigan narx", list:"정상가 · Chegirmagacha narx",
+  copy:"Nusxa olish", copied:"Nusxa olindi: {v}",
+  disc:"할인 <strong>{a}원</strong> ({p}%)", noDisc:"Chegirma yo'q",
+  net:"순이익 · Sof foyda (1 set, 부가세 후)", pre:"부가세 dan oldin: {v}원",
+  rateLbl:"순이익률 (판매가 대비)", markupLbl:"매입가 대비: {v}%",
+  bdTitle:"Hisob tafsiloti (1 set = {n} dona)",
+  bSale:"판매가 (mijoz to'lovi)", bFee:"쿠팡 수수료 (부가세 bilan {r}%)", bShip:"택배비", bCost:"매입가 ({n} dona, 부가세 bilan)",
+  bPre:"부가세 dan oldin qoladi", bVat:"납부할 부가세", bVatRefund:"부가세 qaytadi (환급)", bNet:"순이익 · Sof foyda",
+  vatTitle:"부가세 hisobi (batafsil)",
+  vOut:"매출세액 (판매가 ÷ 11)", vCost:"매입세액 공제 (매입가 × 10%)", vFee:"수수료 부가세 공제 (수수료 × 10%)", vShip:"택배비 부가세 공제 (택배비 ÷ 11)", vPay:"납부할 부가세",
+  formula:"순이익 = 판매가 ÷ 1.1 − 판매가 × 수수료율 − 매입가 − 택배비 ÷ 1.1<br>Bu FORETIMBER Coupang ERP dagi hisob bilan bir xil: (실결제 − 수수료 11.88% − 택배비 − 매입가 부가세 포함) ÷ 1.1",
+  save:"Saqlash", reset:"Tozalash",
+  tblTitle:"Foiz bo'yicha tayyor narxlar", tblSub:"Qatorni bosing, shu foiz tanlanadi. Boshqa sozlamalar o'zgarmaydi.",
+  c1:"순이익률", c2:"판매가", c3:"정상가", c4:"순이익",
+  savedTitle:"Saqlangan mahsulotlar", empty:"Hali saqlangan mahsulot yo'q. Hisoblab bo'lgach \"Saqlash\" tugmasini bosing. Ro'yxat faqat shu brauzerda saqlanadi.",
+  open:"Ochish", del:"O'chirish", saved:"Saqlandi", noName:"(nomsiz)",
+  errCost:"매입가 ni kiriting.", errHigh:"Bu foiz juda katta. Hozirgi 수수료 bilan eng ko'pi {v}% bo'lishi mumkin.",
+  errDisc:"할인율 100% dan kam bo'lishi kerak.", errFee:"수수료율 0 dan 50% gacha bo'lsin.",
+  roundNote:"Narx yaxlitlangani uchun foyda maqsaddan biroz ko'p: {a} → {b}",
+  saleShort:"판매가", listShort:"정상가", netShort:"순이익", example:"namuna"
+ },
+ ko:{
+  title:"쿠팡 판매가 계산기",
+  lede:"매입가와 원하는 순이익만 넣으면 판매가 · 정상가 · 쿠팡 수수료 · 부가세가 자동으로 계산됩니다.",
+  name:"상품명", namePh:"예: 조립식 텃밭 1800x700",
+  s1:"비용", cost:"매입가 (1개)", costHint:"부가세 별도 금액으로 입력",
+  costVat:"부가세 포함: <strong>{v}원</strong>",
+  ship:"택배비 (1세트 발송)", setQty:"세트 구성 (1세트 = 몇 개)", setHint:"1 = 낱개 판매. 예: 10을 넣으면 10개가 1세트이고 매입가가 자동으로 10배 계산됩니다.", pcs:"개", setCost:"1세트 매입가: {n} × {c} = <strong>{t}원</strong> (부가세 포함 {v}원)", perPiece:"1개당: <strong>{v}원</strong>", netPer:"1개당: {v}원", setTblTitle:"세트별 가격표", setTblSub:"현재 목표 이익과 할인으로 계산했습니다. 택배비는 모든 행에 현재 값({v}원)을 적용합니다. 큰 세트의 택배비가 다르면 세트를 선택한 뒤 위에서 택배비를 바꾸세요. 행을 누르면 그 세트가 적용됩니다.", sc1:"세트", sc2:"매입가 (세트)", sc3:"판매가", sc4:"1개당", sc5:"정상가", sc6:"순이익", shipDeduct:"택배비 세금계산서 받음 (부가세 공제)",
+  s2:"목표 순이익 (부가세 납부 후)",
+  tmMargin:"판매가 대비<br>%", tmMarkup:"매입가 대비<br>%", tmAmount:"금액<br>₩",
+  hMargin:"판매가의 몇 %를 순이익으로 남길지", hMarkup:"매입가 대비 몇 %를 순이익으로 남길지", hAmount:"1세트당 남길 순이익 금액",
+  s3:"할인 → 정상가", dmRate:"할인율<br>%", dmAmount:"할인 금액<br>₩", dmNone:"할인<br>없음",
+  hdRate:"정상가에서 몇 % 할인으로 보일지", hdAmount:"정상가에서 몇 원 할인으로 보일지",
+  s4:"설정", fee:"쿠팡 수수료율 (부가세 별도)", feeVat:"부가세 포함: {v}%",
+  round:"판매가 끝자리", roundHint:"항상 올림 처리하므로 순이익이 목표보다 줄지 않습니다.",
+  r900:"…900원",
+  sale:"판매가", saleSub:"고객이 1세트에 결제하는 금액", list:"정상가",
+  copy:"복사", copied:"복사됨: {v}",
+  disc:"할인 <strong>{a}원</strong> ({p}%)", noDisc:"할인 없음",
+  net:"순이익 (1세트, 부가세 후)", pre:"부가세 전: {v}원",
+  rateLbl:"순이익률 (판매가 대비)", markupLbl:"매입가 대비: {v}%",
+  bdTitle:"계산 내역 (1세트 = {n}개)",
+  bSale:"판매가 (고객 결제)", bFee:"쿠팡 수수료 (부가세 포함 {r}%)", bShip:"택배비", bCost:"매입가 ({n}개, 부가세 포함)",
+  bPre:"부가세 전 남는 돈", bVat:"납부할 부가세", bVatRefund:"부가세 환급", bNet:"순이익",
+  vatTitle:"부가세 상세 계산",
+  vOut:"매출세액 (판매가 ÷ 11)", vCost:"매입세액 공제 (매입가 × 10%)", vFee:"수수료 부가세 공제 (수수료 × 10%)", vShip:"택배비 부가세 공제 (택배비 ÷ 11)", vPay:"납부할 부가세",
+  formula:"순이익 = 판매가 ÷ 1.1 − 판매가 × 수수료율 − 매입가 − 택배비 ÷ 1.1<br>FORETIMBER 쿠팡 ERP 계산과 동일: (실결제 − 수수료 11.88% − 택배비 − 매입가 부가세 포함) ÷ 1.1",
+  save:"저장", reset:"초기화",
+  tblTitle:"순이익률별 가격표", tblSub:"행을 누르면 그 %가 적용됩니다. 다른 설정은 그대로 유지됩니다.",
+  c1:"순이익률", c2:"판매가", c3:"정상가", c4:"순이익",
+  savedTitle:"저장한 상품", empty:"아직 저장한 상품이 없습니다. 계산 후 \"저장\"을 누르세요. 목록은 이 브라우저에만 저장됩니다.",
+  open:"열기", del:"삭제", saved:"저장됨", noName:"(이름 없음)",
+  errCost:"매입가를 입력하세요.", errHigh:"목표가 너무 높습니다. 현재 수수료로는 최대 {v}%까지 가능합니다.",
+  errDisc:"할인율은 100%보다 작아야 합니다.", errFee:"수수료율은 0~50% 사이로 입력하세요.",
+  roundNote:"끝자리 올림으로 순이익이 목표보다 조금 많습니다: {a} → {b}",
+  saleShort:"판매가", listShort:"정상가", netShort:"순이익", example:"예시"
+ }
+};
+
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString('ko-KR');
+const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR',{maximumFractionDigits:1});
+const parseNum = s => { const v = parseFloat(String(s).replace(/,/g,'')); return isFinite(v) ? v : NaN; };
+
+const STORE = 'ft-coupang-price-v1';
+const load = k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } };
+const store = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
+
+const prefs = load(STORE+'-prefs') || {};
+const st = {
+  lang: prefs.lang || 'uz',
+  tmode:'margin', target:{margin:'20', markup:'30', amount:'3000'},
+  dmode:'amount', disc:{rate:'10', amount:'3000'},
+  round: prefs.round || '100',
+  example:true
+};
+
+const t = (k, vars) => { let s = (T[st.lang][k] ?? k); if (vars) for (const x in vars) s = s.replace('{'+x+'}', vars[x]); return s; };
+
+/* ---------- money input with commas, caret kept ---------- */
+function bindMoney(el){
+  el.addEventListener('input', () => {
+    const pos = el.selectionStart ?? el.value.length;
+    const right = el.value.slice(pos).replace(/[^\d]/g,'').length;
+    const digits = el.value.replace(/[^\d]/g,'').replace(/^0+(?=\d)/,'').slice(0,12);
+    el.value = digits ? Number(digits).toLocaleString('ko-KR') : '';
+    let i = el.value.length, seen = 0;
+    while (i > 0 && seen < right){ i--; if (/\d/.test(el.value[i])) seen++; }
+    try { el.setSelectionRange(i,i); } catch(e){}
+  });
+}
+function bindDecimal(el){
+  el.addEventListener('input', () => {
+    let v = el.value.replace(/[^\d.]/g,'');
+    const p = v.indexOf('.'); if (p >= 0) v = v.slice(0,p+1) + v.slice(p+1).replace(/\./g,'');
+    if (v !== el.value) el.value = v;
+  });
+}
+const isMoneyTarget = () => st.tmode === 'amount';
+const isMoneyDisc = () => st.dmode === 'amount';
+
+bindMoney($('cost')); bindMoney($('ship')); bindMoney($('setQty'));
+bindDecimal($('fee'));
+// target & disc switch format by mode
+$('target').addEventListener('input', () => {
+  const el = $('target');
+  if (isMoneyTarget()){ /* money */ } else { let v = el.value.replace(/[^\d.]/g,''); const p=v.indexOf('.'); if(p>=0) v=v.slice(0,p+1)+v.slice(p+1).replace(/\./g,''); el.value=v; }
+});
+// custom money handler for target/disc when in money mode
+['target','disc'].forEach(id => {
+  const el = $(id);
+  el.addEventListener('input', () => {
+    const money = id === 'target' ? isMoneyTarget() : isMoneyDisc();
+    if (!money) return;
+    const pos = el.selectionStart ?? el.value.length;
+    const right = el.value.slice(pos).replace(/[^\d]/g,'').length;
+    const digits = el.value.replace(/[^\d]/g,'').replace(/^0+(?=\d)/,'').slice(0,12);
+    el.value = digits ? Number(digits).toLocaleString('ko-KR') : '';
+    let i = el.value.length, seen = 0;
+    while (i > 0 && seen < right){ i--; if (/\d/.test(el.value[i])) seen++; }
+    try { el.setSelectionRange(i,i); } catch(e){}
+  });
+});
+$('disc').addEventListener('input', () => {
+  if (isMoneyDisc()) return;
+  const el = $('disc'); let v = el.value.replace(/[^\d.]/g,''); const p=v.indexOf('.'); if(p>=0) v=v.slice(0,p+1)+v.slice(p+1).replace(/\./g,''); el.value=v;
+});
+
+/* ---------- math ---------- */
+function roundUp(x, mode){
+  if (!(x > 0)) return 0;
+  const eps = 1e-6;
+  if (mode === '900'){ let r = Math.ceil((x - 900)/1000 - eps)*1000 + 900; if (r < x - eps) r += 1000; return Math.max(r, 900); }
+  const u = Number(mode) || 1;
+  return Math.ceil(x/u - eps)*u;
+}
+// all money values are per 1 unit. f = fee rate without VAT (0.108)
+function metrics(P, C, S, f, deduct){
+  const fee = P*f*1.1;
+  const costIn = C*1.1;
+  const pre = P - fee - costIn - S;
+  const vOut = P/11, vCost = C*0.1, vFee = P*f*0.1, vShip = deduct ? S/11 : 0;
+  const vat = vOut - vCost - vFee - vShip;
+  const net = pre - vat;
+  return {P, fee, costIn, S, pre, vOut, vCost, vFee, vShip, vat, net, rate: P>0 ? net/P : 0, markup: C>0 ? net/C : 0};
+}
+function solveP(mode, val, C, S, f, deduct){
+  const k = 1/1.1 - f, Sx = deduct ? S/1.1 : S;
+  if (mode === 'margin'){ const m = val/100; if (k - m <= 0.0001) return {err:'high', max: (k-0.0001)*100}; return {P:(C+Sx)/(k-m)}; }
+  if (mode === 'markup'){ return {P:(C*(1+val/100) + Sx)/k}; }
+  return {P:(val + C + Sx)/k};
+}
+function listPrice(P){
+  if (st.dmode === 'none') return {L:P, d:0};
+  const v = parseNum($('disc').value) || 0;
+  if (st.dmode === 'amount') return {L:P+v, d:v};
+  if (v >= 100) return {err:'disc'};
+  const L = v > 0 ? roundUp(P/(1-v/100), st.round) : P;
+  return {L, d:L-P};
+}
+function inputs(){
+  return {
+    C: parseNum($('cost').value), S: parseNum($('ship').value) || 0,
+    N: Math.max(1, Math.floor(parseNum($('setQty').value) || 1)),
+    f: parseNum($('fee').value), deduct: $('shipDeduct').checked,
+    tv: parseNum($('target').value) || 0
+  };
+}
+
+/* ---------- render ---------- */
+function setText(id, s){ $(id).innerHTML = s; }
+function row(name, val, cls, barPct, isNeg){
+  return `<div class="row ${cls||''}"><span class="name">${name}</span><span class="val num ${isNeg?'neg':''}">${val}</span>${barPct!=null?`<span class="bar"><i style="width:${Math.max(0,Math.min(100,barPct))}%"></i></span>`:''}</div>`;
+}
+let last = null;
+function calc(){
+  const {C:C1,N,S,f,deduct,tv} = inputs();
+  const C = C1*N;
+  $('costVat').innerHTML = C1 > 0 ? t('costVat',{v:fmt(C1*1.1)}) : '';
+  $('setCost').innerHTML = C1 > 0 && N > 1 ? t('setCost',{n:fmt(N), c:fmt(C1), t:fmt(C), v:fmt(C*1.1)}) : '';
+  $('bdTitle').textContent = t('bdTitle',{n:fmt(N)});
+  $('feeVat').textContent = isFinite(f) ? t('feeVat',{v:pct(f*1.1)}) : '';
+  const err = $('err'); err.hidden = true;
+  const blank = () => { ['rSale','rList','rNet','rRate','mSale','mList','mNet'].forEach(i=>$(i).textContent='—'); $('rDisc').innerHTML=''; $('rPer').innerHTML=''; $('setTbl').innerHTML=''; $('rPre').textContent=''; $('rMarkup').textContent=''; $('rows').innerHTML=''; $('vatRows').innerHTML=''; $('roundNote').hidden=true; $('tbl').innerHTML=''; last=null; };
+  const fail = msg => { err.textContent = msg; err.hidden = false; blank(); };
+
+  if (!(C > 0)) return fail(t('errCost'));
+  if (!(f >= 0 && f < 50)) return fail(t('errFee'));
+  const fr = f/100;
+  const sol = solveP(st.tmode, tv, C, S, fr, deduct);
+  if (sol.err) return fail(t('errHigh',{v:pct(sol.max)}));
+  const P = roundUp(sol.P, st.round);
+  const lp = listPrice(P);
+  if (lp.err) return fail(t('errDisc'));
+  const m = metrics(P, C, S, fr, deduct);
+  last = {name:$('name').value.trim(), C, C1, N, S, P, L:lp.L, net:m.net, rate:m.rate};
+  $('rPer').innerHTML = N > 1 ? t('perPiece',{v:fmt(P/N)}) : '';
+
+  $('rSale').innerHTML = `${fmt(P)}<small>원</small>`;
+  $('rList').innerHTML = `${fmt(lp.L)}<small>원</small>`;
+  $('rDisc').innerHTML = lp.d > 0 ? t('disc',{a:fmt(lp.d), p:pct(lp.d/lp.L*100)}) : t('noDisc');
+  const nEl = $('rNet'); nEl.innerHTML = `${m.net<0?'−':''}${fmt(Math.abs(m.net))}<small>원</small>`; nEl.classList.toggle('neg', m.net < 0);
+  $('rPre').innerHTML = t('pre',{v:fmt(m.pre)}) + (N > 1 ? ' · ' + t('netPer',{v:fmt(m.net/N)}) : '');
+  $('rRate').textContent = pct(m.rate*100) + '%';
+  $('rMarkup').textContent = t('markupLbl',{v:pct(m.markup*100)});
+  $('mSale').textContent = fmt(P)+'원'; $('mList').textContent = fmt(lp.L)+'원'; $('mNet').textContent = fmt(m.net)+'원';
+
+  // rounding note
+  const rn = $('roundNote');
+  const targetShown = st.tmode==='margin' ? pct(tv)+'%' : st.tmode==='markup' ? pct(tv)+'%' : fmt(tv)+'원';
+  const actualShown = st.tmode==='margin' ? pct(m.rate*100)+'%' : st.tmode==='markup' ? pct(m.markup*100)+'%' : fmt(m.net)+'원';
+  rn.hidden = Math.abs(P - sol.P) < 1 || targetShown === actualShown;
+  rn.textContent = t('roundNote',{a:targetShown, b:actualShown});
+
+  const bp = v => v/P*100;
+  const vatRefund = m.vat < 0;
+  $('rows').innerHTML =
+    row(t('bSale'), fmt(P)+'원', 'sale', 100) +
+    row(t('bFee',{r:pct(fr*110)}), '−'+fmt(m.fee)+'원', '', bp(m.fee), true) +
+    row(t('bShip'), '−'+fmt(S)+'원', '', bp(S), true) +
+    row(t('bCost',{n:fmt(N)}), '−'+fmt(m.costIn)+'원', '', bp(m.costIn), true) +
+    row(t('bPre'), fmt(m.pre)+'원', 'sub') +
+    row(vatRefund ? t('bVatRefund') : t('bVat'), (vatRefund?'+':'−')+fmt(Math.abs(m.vat))+'원', '', bp(Math.abs(m.vat)), !vatRefund) +
+    `<div class="row total final"><span class="name">${t('bNet')}</span><span class="val num ${m.net<0?'neg':''}">${fmt(m.net)}원</span></div>`;
+
+  $('vatRows').innerHTML =
+    row(t('vOut'), fmt(m.vOut)+'원') +
+    row(t('vCost'), '−'+fmt(m.vCost)+'원') +
+    row(t('vFee'), '−'+fmt(m.vFee)+'원') +
+    (deduct ? row(t('vShip'), '−'+fmt(m.vShip)+'원') : '') +
+    `<div class="row total"><span class="name">${t('vPay')}</span><span class="val num">${fmt(m.vat)}원</span></div>`;
+
+  // table
+  const marks = [10,15,20,25,30,35,40];
+  let html = '';
+  for (const mk of marks){
+    const s2 = solveP('margin', mk, C, S, fr, deduct); if (s2.err) continue;
+    const P2 = roundUp(s2.P, st.round); const l2 = listPrice(P2); if (l2.err) continue;
+    const m2 = metrics(P2, C, S, fr, deduct);
+    const on = st.tmode==='margin' && Math.abs(tv - mk) < 0.001;
+    html += `<tr data-m="${mk}" class="${on?'on':''}" tabindex="0"><td>${mk}%</td><td>${fmt(P2)}원</td><td>${fmt(l2.L)}원</td><td>${fmt(m2.net)}원</td></tr>`;
+  }
+  $('tbl').innerHTML = html;
+
+  // set size comparison
+  const sizes = [...new Set([1,2,3,5,10,20,50,100,N])].sort((a,b)=>a-b);
+  let sh = '';
+  for (const n of sizes){
+    const Cn = C1*n;
+    const s3 = solveP(st.tmode, tv, Cn, S, fr, deduct); if (s3.err) continue;
+    const P3 = roundUp(s3.P, st.round); const l3 = listPrice(P3); if (l3.err) continue;
+    const m3 = metrics(P3, Cn, S, fr, deduct);
+    sh += `<tr data-n="${n}" class="${n===N?'on':''}" tabindex="0"><td>${fmt(n)}${t('pcs')}</td><td>${fmt(Cn)}원</td><td>${fmt(P3)}원</td><td>${fmt(P3/n)}원</td><td>${fmt(l3.L)}원</td><td>${fmt(m3.net)}원</td></tr>`;
+  }
+  $('setTbl').innerHTML = sh;
+  $('setTblSub').textContent = t('setTblSub',{v:fmt(S)});
+}
+
+/* ---------- chips & segments ---------- */
+function chips(el, values, current, label, onPick){
+  el.innerHTML = values.map(v => `<button type="button" data-v="${v}" aria-pressed="${String(v)===String(current)}">${label(v)}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('button'); if (b) onPick(b.dataset.v); };
+}
+const chipSets = {
+  margin:[10,15,20,25,30], markup:[20,30,50,80,100], amount:[1000,2000,3000,5000,10000],
+  rate:[5,10,15,20,30], damount:[1000,2000,3000,5000]
+};
+function renderTarget(){
+  ['margin','markup','amount'].forEach(m => $('tm-'+m).setAttribute('aria-pressed', String(st.tmode===m)));
+  $('tm-margin').innerHTML = t('tmMargin'); $('tm-markup').innerHTML = t('tmMarkup'); $('tm-amount').innerHTML = t('tmAmount');
+  const money = st.tmode === 'amount';
+  $('targetUnit').textContent = money ? '원' : '%';
+  $('target').inputMode = money ? 'numeric' : 'decimal';
+  $('target').value = money ? (st.target.amount ? Number(String(st.target.amount).replace(/,/g,'')).toLocaleString('ko-KR') : '') : st.target[st.tmode];
+  $('targetHelp').textContent = t(st.tmode==='margin'?'hMargin':st.tmode==='markup'?'hMarkup':'hAmount');
+  const cur = String(parseNum($('target').value));
+  chips($('targetChips'), chipSets[st.tmode], cur, v => money ? fmt(v)+'원' : v+'%', v => { st.target[st.tmode] = v; renderTarget(); calc(); });
+}
+function renderDisc(){
+  ['rate','amount','none'].forEach(m => $('dm-'+m).setAttribute('aria-pressed', String(st.dmode===m)));
+  $('dm-rate').innerHTML = t('dmRate'); $('dm-amount').innerHTML = t('dmAmount'); $('dm-none').innerHTML = t('dmNone');
+  $('discField').hidden = st.dmode === 'none';
+  if (st.dmode === 'none') return;
+  const money = st.dmode === 'amount';
+  $('discUnit').textContent = money ? '원' : '%';
+  $('disc').inputMode = money ? 'numeric' : 'decimal';
+  $('disc').value = money ? (st.disc.amount ? Number(String(st.disc.amount).replace(/,/g,'')).toLocaleString('ko-KR') : '') : st.disc.rate;
+  $('discHelp').textContent = t(money ? 'hdAmount' : 'hdRate');
+  const cur = String(parseNum($('disc').value));
+  chips($('discChips'), money ? chipSets.damount : chipSets.rate, cur, v => money ? fmt(v)+'원' : v+'%', v => { st.disc[st.dmode] = v; renderDisc(); calc(); });
+}
+function renderSettings(){
+  const f = String(parseNum($('fee').value));
+  chips($('feeChips'), [5.8, 7.8, 10.8], f, v => v+'%', v => { $('fee').value = v; renderSettings(); calc(); });
+  chips($('roundChips'), ['10','100','1000','900'], st.round, v => v==='900' ? t('r900') : fmt(v)+'원', v => { st.round = v; savePrefs(); renderSettings(); calc(); });
+  chips($('setChips'), [1,2,3,5,10,20,50,100], String(parseNum($('setQty').value)), v => fmt(v)+t('pcs'), v => { $('setQty').value = v; renderSettings(); calc(); });
+  const s = String(parseNum($('ship').value));
+  chips($('shipChips'), [0, 2600, 3100, 6100], s, v => fmt(v)+'원', v => { $('ship').value = Number(v).toLocaleString('ko-KR'); renderSettings(); calc(); });
+}
+$('tmode').onclick = e => { const b = e.target.closest('button'); if (!b) return; st.target[st.tmode] = $('target').value.replace(/,/g,''); st.tmode = b.dataset.v; renderTarget(); calc(); };
+$('dmode').onclick = e => { const b = e.target.closest('button'); if (!b) return; if (st.dmode!=='none') st.disc[st.dmode] = $('disc').value.replace(/,/g,''); st.dmode = b.dataset.v; renderDisc(); calc(); };
+
+$('target').addEventListener('input', () => { st.target[st.tmode] = $('target').value.replace(/,/g,''); const cur=String(parseNum($('target').value)); $('targetChips').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.v===cur))); calc(); });
+$('disc').addEventListener('input', () => { if (st.dmode!=='none') st.disc[st.dmode] = $('disc').value.replace(/,/g,''); const cur=String(parseNum($('disc').value)); $('discChips').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.v===cur))); calc(); });
+['cost','ship','fee','name','setQty'].forEach(id => $(id).addEventListener('input', () => { if (id==='fee'||id==='ship'||id==='setQty') renderSettings(); if (id==='fee') savePrefs(); calc(); }));
+$('shipDeduct').addEventListener('change', () => { savePrefs(); calc(); });
+
+$('tbl').addEventListener('click', e => { const tr = e.target.closest('tr'); if (!tr) return; st.tmode='margin'; st.target.margin = tr.dataset.m; renderTarget(); calc(); window.scrollTo({top:0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); });
+$('setTbl').addEventListener('click', e => { const tr = e.target.closest('tr'); if (!tr) return; $('setQty').value = Number(tr.dataset.n).toLocaleString('ko-KR'); renderSettings(); calc(); window.scrollTo({top:0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); });
+$('setTbl').addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' '){ e.preventDefault(); e.target.closest('tr')?.click(); } });
+$('tbl').addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' '){ e.preventDefault(); e.target.closest('tr')?.click(); } });
+
+/* ---------- copy / toast ---------- */
+let toastTimer;
+function toast(msg){ const el = $('toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(()=>el.hidden=true, 1800); }
+function copy(v){
+  if (!last) return;
+  const s = String(Math.round(v));
+  const done = () => toast(t('copied',{v:fmt(v)+'원'}));
+  try { navigator.clipboard.writeText(s).then(done, () => fallbackCopy(s, done)); } catch(e){ fallbackCopy(s, done); }
+}
+function fallbackCopy(s, done){ const ta = document.createElement('textarea'); ta.value = s; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); done(); }catch(e){} ta.remove(); }
+$('copySale').onclick = () => last && copy(last.P);
+$('copyList').onclick = () => last && copy(last.L);
+
+/* ---------- saved list ---------- */
+let saved = load(STORE+'-items') || [];
+function snapshot(){
+  return { name:$('name').value.trim(), cost:$('cost').value, setQty:$('setQty').value, ship:$('ship').value, fee:$('fee').value, deduct:$('shipDeduct').checked,
+    tmode:st.tmode, target:{...st.target, [st.tmode]: $('target').value.replace(/,/g,'')}, dmode:st.dmode,
+    disc: st.dmode==='none' ? {...st.disc} : {...st.disc, [st.dmode]: $('disc').value.replace(/,/g,'')}, round:st.round };
+}
+function restore(s){
+  $('name').value = s.name || ''; $('cost').value = s.cost || ''; $('setQty').value = s.setQty || '1'; $('ship').value = s.ship || ''; $('fee').value = s.fee || '10.8';
+  $('shipDeduct').checked = s.deduct !== false;
+  st.tmode = s.tmode || 'margin'; st.target = {...st.target, ...(s.target||{})};
+  st.dmode = s.dmode || 'none'; st.disc = {...st.disc, ...(s.disc||{})}; st.round = s.round || st.round;
+  renderAll();
+}
+function renderSaved(){
+  const el = $('saved');
+  if (!saved.length){ el.innerHTML = `<p class="empty">${t('empty')}</p>`; return; }
+  el.innerHTML = saved.map((it,i) => `<div class="sitem">
+    <div><div class="n">${esc(it.r.name || t('noName'))}</div>
+    <div class="d">${(it.r.N||1) > 1 ? 'Set <strong>'+fmt(it.r.N)+'</strong>'+t('pcs')+' · ' : ''}매입가 <strong>${fmt(it.r.C)}</strong> · 판매가 <strong>${fmt(it.r.P)}</strong> · 정상가 <strong>${fmt(it.r.L)}</strong> · 순이익 <strong>${fmt(it.r.net)}</strong> (${pct(it.r.rate*100)}%)</div></div>
+    <div class="b"><button type="button" data-a="open" data-i="${i}">${t('open')}</button><button type="button" class="del" data-a="del" data-i="${i}">${t('del')}</button></div></div>`).join('');
+}
+function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+$('saved').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return; const i = +b.dataset.i;
+  if (b.dataset.a === 'open'){ restore(saved[i].s); window.scrollTo({top:0}); }
+  else { saved.splice(i,1); store(STORE+'-items', saved); renderSaved(); }
+};
+$('saveBtn').onclick = () => {
+  if (!last) return;
+  const s = snapshot(); const r = {...last};
+  const idx = r.name ? saved.findIndex(x => x.r.name === r.name && (x.r.N||1) === (r.N||1)) : -1;
+  const item = {s, r, ts:Date.now()};
+  if (idx >= 0) saved[idx] = item; else saved.unshift(item);
+  store(STORE+'-items', saved); renderSaved(); toast(t('saved'));
+};
+$('resetBtn').onclick = () => {
+  restore({name:'', cost:'', ship:'', fee:$('fee').value, deduct:$('shipDeduct').checked, tmode:'margin', target:{margin:'20'}, dmode:'none', round:st.round});
+  $('cost').focus();
+};
+
+function savePrefs(){ store(STORE+'-prefs', {lang:st.lang, round:st.round}); }
+
+/* ---------- language ---------- */
+function applyLang(){
+  document.documentElement.lang = st.lang === 'ko' ? 'ko' : 'uz';
+  document.querySelectorAll('[data-i]').forEach(el => { el.innerHTML = t(el.dataset.i); });
+  $('name').placeholder = t('namePh');
+  $('lang-uz').setAttribute('aria-pressed', String(st.lang==='uz'));
+  $('lang-ko').setAttribute('aria-pressed', String(st.lang==='ko'));
+  document.title = st.lang === 'ko' ? 'FORETIMBER 판매가 계산기' : 'FORETIMBER Narx Kalkulyatori';
+}
+$('lang-uz').onclick = () => { st.lang='uz'; savePrefs(); renderAll(); };
+$('lang-ko').onclick = () => { st.lang='ko'; savePrefs(); renderAll(); };
+
+function renderAll(){ applyLang(); renderTarget(); renderDisc(); renderSettings(); renderSaved(); calc(); }
+
+/* ---------- sample on first open (clearly marked) ---------- */
+$('name').value = '조립식 텃밭 1800x700 (' + T[st.lang].example + ')';
+$('cost').value = '5,000';
+$('ship').value = '6,100';
+renderAll();
+})();
+</script>
+</body>
+</html>
